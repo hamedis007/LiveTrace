@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveTrace Dashboard</title>
+    <script src="/static/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0d0d1a;
+            --sidebar: #111127;
+            --card: #16162a;
+            --card2: #1c1c35;
+            --accent: #7a7aff;
+            --accent2: #4a4a8a;
+            --text: #e0e0f0;
+            --muted: #888899;
+            --border: #2a2a45;
+            --red: #e74c3c;
+            --green: #27ae60;
+            --orange: #f39c12;
+            --white: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 100;
+        }
+        .logo-area {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .logo-icon {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+        .logo-svg {
+            width: 42px;
+            height: 42px;
+        }
+        .logo-text {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+        .logo-sub {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-left: 54px;
+        }
+        .nav-section {
+            padding: 20px 12px;
+            flex: 1;
+        }
+        .nav-label {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s;
+            margin-bottom: 2px;
+            cursor: pointer;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: var(--card2);
+            color: var(--accent);
+        }
+        .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+        .nav-badge {
+            margin-left: auto;
+            background: var(--accent2);
+            color: var(--white);
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .nav-badge.red { background: var(--red); }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .sidebar-footer span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* ── MAIN CONTENT ── */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 28px;
+            min-height: 100vh;
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+        .topbar-left h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--white);
+        }
+        .topbar-left p {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .download-btn {
+            background: var(--accent);
+            color: white;
+            padding: 9px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .download-btn:hover { background: #6060dd; }
+
+        /* ── OVERVIEW ROW ── */
+        .overview-row {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        /* ── RISK METER ── */
+        .risk-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .risk-card h3 {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+        .meter-container {
+            position: relative;
+            width: 180px;
+            height: 100px;
+            margin-bottom: 12px;
+        }
+        .meter-svg { width: 180px; height: 110px; }
+        .meter-label {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        .meter-score {
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .meter-risk {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .risk-low { color: var(--green); }
+        .risk-medium { color: var(--orange); }
+        .risk-high { color: var(--red); }
+        .risk-details {
+            width: 100%;
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .risk-detail-item {
+            background: var(--card2);
+            border-radius: 8px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .risk-detail-item .val {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .risk-detail-item .lbl {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* ── STAT CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+        .stat-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(122,122,255,0.15);
+        }
+        .stat-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .stat-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: var(--card2);
+        }
+        .stat-card-number {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--white);
+        }
+        .stat-card-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .stat-card-arrow {
+            font-size: 11px;
+            color: var(--accent);
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ── CHARTS ROW ── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .chart-card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chart-card h3 span { color: var(--muted); font-size: 11px; font-weight: 400; }
+
+        /* ── SECTION CARDS ── */
+        .section-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-header h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-badge {
+            background: var(--card2);
+            color: var(--accent);
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* ── ALERTS ── */
+        .alert-item {
+            background: rgba(231,76,60,0.08);
+            border: 1px solid rgba(231,76,60,0.3);
+            border-left: 3px solid var(--red);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+        .alert-item h4 { color: var(--red); font-size: 13px; margin-bottom: 4px; }
+        .alert-item p { color: #ccaaaa; font-size: 11px; margin-top: 2px; }
+        .alert-reason { color: var(--red); font-size: 11px; margin-top: 4px; font-weight: 600; }
+        .no-alerts {
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── TABLE ── */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th {
+            background: var(--card2);
+            color: var(--accent);
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-size: 11px;
+        }
+        .data-table tr:hover td { background: var(--card2); }
+        .data-table tr:last-child td { border-bottom: none; }
+
+        /* ── BADGES ── */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .badge-green { background: rgba(39,174,96,0.15); color: var(--green); }
+        .badge-red { background: rgba(231,76,60,0.15); color: var(--red); }
+        .badge-blue { background: rgba(122,122,255,0.15); color: var(--accent); }
+        .badge-gray { background: var(--card2); color: var(--muted); }
+
+        /* ── SESSION BOX ── */
+        .session-box {
+            background: var(--card2);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 13px;
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        /* ── SCROLLABLE TABLE ── */
+        .table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        .table-wrapper::-webkit-scrollbar { width: 6px; }
+        .table-wrapper::-webkit-scrollbar-track { background: var(--card2); }
+        .table-wrapper::-webkit-scrollbar-thumb { background: var(--accent2); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+
+<div class="sidebar">
+    <div class="logo-area">
+        <div class="logo-icon">
+            <svg class="logo-svg" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+                <circle cx="17" cy="17" r="13" stroke="#7a7aff" stroke-width="2" fill="none"/>
+
+                <line x1="27" y1="27" x2="38" y2="38" stroke="#7a7aff" stroke-width="3" stroke-linecap="round"/>
+
+                <circle cx="17" cy="17" r="8" stroke="#4a4a8a" stroke-width="1" fill="none"/>
+                <circle cx="17" cy="17" r="3" fill="#7a7aff"/>
+
+                <line x1="17" y1="4" x2="17" y2="9" stroke="#7a7aff" stroke-width="1.5"/>
+                <line x1="17" y1="25" x2="17" y2="30" stroke="#7a7aff" stroke-width="1.5"/>
+                <line x1="4" y1="17" x2="9" y2="17" stroke="#7a7aff" stroke-width="1.5"/>
+                <line x1="25" y1="17" x2="30" y2="17" stroke="#7a7aff" stroke-width="1.5"/>
+
+                <circle cx="26" cy="8" r="3" fill="#e74c3c"/>
+            </svg>
+            <span class="logo-text">LiveTrace</span>
+        </div>
+        <div class="logo-sub">Live System Forensics & Triage Toolkit</div>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-label">Navigation</div>
+        <a class="nav-item active" href="#overview">
+            <span class="icon">⬡</span> Overview
+        </a>
+        <a class="nav-item" href="#suspicious">
+            <span class="icon">⚠</span> Suspicious
+            {% set total_suspicious = (scored.suspicious_processes|length) + (scored.suspicious_registry|length) + (scored.suspicious_connections|length) + (scored.suspicious_prefetch|length) %}
+            {% if total_suspicious > 0 %}
+            <span class="nav-badge red">{{ total_suspicious }}</span>
+            {% endif %}
+        </a>
+        <a class="nav-item" href="#processes">
+            <span class="icon">⚙</span> Processes
+            <span class="nav-badge">{{ data.processes|length }}</span>
+        </a>
+        <a class="nav-item" href="#network">
+            <span class="icon">⊹</span> Network
+            <span class="nav-badge">{{ data.network_connections|length }}</span>
+        </a>
+        <a class="nav-item" href="#sessions">
+            <span class="icon">◎</span> Sessions
+        </a>
+        <a class="nav-item" href="#registry">
+            <span class="icon">≡</span> Registry
+            <span class="nav-badge">{{ data.registry_artifacts|length }}</span>
+        </a>
+        <a class="nav-item" href="#prefetch">
+            <span class="icon">◷</span> Prefetch
+            <span class="nav-badge">{{ data.prefetch_files|length }}</span>
+        </a>
+    </div>
+
+    <div class="sidebar-footer">
+        Scan: <span>{{ data.timestamp }}</span>
+        <div style="margin-top: 8px; font-size: 10px; word-break: break-all;">
+            SHA-256:<br>
+            <span style="color: var(--green); font-family: monospace; font-size: 9px;">
+                {{ data.integrity_hash }}
+            </span>
+        </div>
+    </div>
+</div>
+
+
+<div class="main">
+
+
+    <div class="topbar" id="overview">
+        <div class="topbar-left">
+            <h1>Investigation Dashboard</h1>
+            <p>Live system triage — {{ data.timestamp }}</p>
+        </div>
+        <div class="topbar-right">
+            <a href="/download_json" class="download-btn">⬇ Download JSON Log</a>
+            <a href="/download" class="download-btn">⬇ Download PDF Report</a>
+        </div>
+    </div>
+
+
+    <div class="overview-row">
+
+
+        <div class="risk-card">
+            <h3>Risk Assessment</h3>
+            <div class="meter-container">
+                <svg class="meter-svg" viewBox="0 0 180 110">
+
+                    <path d="M 20 95 A 70 70 0 0 1 160 95"
+                          fill="none" stroke="#2a2a45" stroke-width="14" stroke-linecap="round"/>
+
+                    <path id="riskArc" d="M 20 95 A 70 70 0 0 1 160 95"
+                          fill="none" stroke="{{ '#27ae60' if risk_class == 'low' else ('#f39c12' if risk_class == 'medium' else '#e74c3c') }}"
+                          stroke-width="14" stroke-linecap="round"
+                          stroke-dasharray="220"
+                          stroke-dashoffset="{{ 220 - (scored.total_score / 500 * 220)|int if scored.total_score < 500 else 0 }}"/>
+
+                    {% for i in range(0, 11) %}
+                    <line
+
+                        <line x1="20" y1="95" x2="28" y2="95" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="27" y1="65" x2="34" y2="69" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="47" y1="42" x2="52" y2="48" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="76" y1="27" x2="78" y2="34" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="90" y1="22" x2="90" y2="30" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="104" y1="27" x2="102" y2="34" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="133" y1="42" x2="128" y2="48" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="153" y1="65" x2="146" y2="69" stroke="#2a2a45" stroke-width="1.5"/>
+                        <line x1="160" y1="95" x2="152" y2="95" stroke="#2a2a45" stroke-width="1.5"/>
+                    {% endfor %}
+                </svg>
+                <div class="meter-label">
+                    <div class="meter-score risk-{{ risk_class }}">{{ scored.total_score }}</div>
+                    <div class="meter-risk risk-{{ risk_class }}">{{ risk_level }}</div>
+                </div>
+            </div>
+            <div class="risk-details">
+                <div class="risk-detail-item">
+                    <div class="val">{{ scored.suspicious_processes|length }}</div>
+                    <div class="lbl">Susp. Processes</div>
+                </div>
+                <div class="risk-detail-item">
+                    <div class="val">{{ scored.suspicious_connections|length }}</div>
+                    <div class="lbl">Susp. Connections</div>
+                </div>
+                <div class="risk-detail-item">
+                    <div class="val">{{ scored.suspicious_registry|length }}</div>
+                    <div class="lbl">Susp. Registry</div>
+                </div>
+                <div class="risk-detail-item">
+                    <div class="val">{{ scored.suspicious_prefetch|length }}</div>
+                    <div class="lbl">Susp. Prefetch</div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="stats-grid">
+            <a class="stat-card" href="#processes">
+                <div class="stat-card-top">
+                    <div class="stat-icon">⚙</div>
+                </div>
+                <div class="stat-card-number">{{ data.processes|length }}</div>
+                <div class="stat-card-label">Running Processes</div>
+                <div class="stat-card-arrow">View all processes →</div>
+            </a>
+            <a class="stat-card" href="#network">
+                <div class="stat-card-top">
+                    <div class="stat-icon">⊹</div>
+                </div>
+                <div class="stat-card-number">{{ data.network_connections|length }}</div>
+                <div class="stat-card-label">Network Connections</div>
+                <div class="stat-card-arrow">View all connections →</div>
+            </a>
+            <a class="stat-card" href="#prefetch">
+                <div class="stat-card-top">
+                    <div class="stat-icon">◷</div>
+                </div>
+                <div class="stat-card-number">{{ data.prefetch_files|length }}</div>
+                <div class="stat-card-label">Prefetch Files</div>
+                <div class="stat-card-arrow">View all prefetch →</div>
+            </a>
+            <a class="stat-card" href="#registry">
+                <div class="stat-card-top">
+                    <div class="stat-icon">≡</div>
+                </div>
+                <div class="stat-card-number">{{ data.registry_artifacts|length }}</div>
+                <div class="stat-card-label">Registry Artifacts</div>
+                <div class="stat-card-arrow">View all registry →</div>
+            </a>
+        </div>
+    </div>
+
+
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3>Process Distribution <span>by user account</span></h3>
+            <canvas id="processChart" height="160"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Network Connections <span>by status</span></h3>
+            <canvas id="networkChart" height="160"></canvas>
+        </div>
+    </div>
+
+
+    <div class="section-card" id="suspicious">
+        <div class="section-header">
+            <h2>⚠ Suspicious Findings</h2>
+           <span class="section-badge">{{ (scored.suspicious_processes|length) + (scored.suspicious_registry|length) + (scored.suspicious_connections|length) + (scored.suspicious_prefetch|length) }} alerts</span>
+        </div>
+        {% if scored.suspicious_processes or scored.suspicious_registry or scored.suspicious_connections or scored.suspicious_prefetch %}
+            {% for proc in scored.suspicious_processes %}
+            <div class="alert-item">
+                <h4>PID {{ proc.pid }} — {{ proc.name }}</h4>
+                <p>Path: {{ proc.exe }}</p>
+                {% for reason in proc.reasons %}
+                <p class="alert-reason">⚑ {{ reason }}</p>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% for reg in scored.suspicious_registry %}
+            <div class="alert-item">
+                <h4>Suspicious Registry Entry — {{ reg.name }}</h4>
+                <p>Key: {{ reg.key }}</p>
+                <p>Value: {{ reg.value }}</p>
+                {% for reason in reg.reasons %}
+                <p class="alert-reason">⚑ {{ reason }}</p>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% for conn in scored.suspicious_connections %}
+            <div class="alert-item">
+                <h4>Suspicious Network Connection</h4>
+                <p>Local: {{ conn.local }} → Remote: {{ conn.remote }}</p>
+                <p class="alert-reason">⚑ {{ conn.reasons[0] }}</p>
+            </div>
+            {% endfor %}
+            {% for pf in scored.suspicious_prefetch %}
+            <div class="alert-item">
+                <h4>Suspicious Prefetch — {{ pf.name }}</h4>
+                <p>Last Modified: {{ pf.last_modified }}</p>
+                <p class="alert-reason">⚑ {{ pf.reason }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-alerts">✓ No suspicious findings detected on this system.</div>
+        {% endif %}
+    </div>
+
+
+    <div class="section-card" id="processes">
+        <div class="section-header">
+            <h2>⚙ Running Processes</h2>
+            <span class="section-badge">{{ data.processes|length }} total</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>User</th>
+                        <th>Path</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for proc in data.processes %}
+                    <tr>
+                        <td>{{ proc.pid }}</td>
+                        <td><strong>{{ proc.name }}</strong></td>
+                        <td>
+                            <span class="badge {{ 'badge-green' if proc.status == 'running' else 'badge-gray' }}">
+                                {{ proc.status }}
+                            </span>
+                        </td>
+                        <td>{{ proc.username or 'N/A' }}</td>
+                        <td style="color: var(--muted); font-size: 10px;">{{ proc.exe or 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <div class="section-card" id="network">
+        <div class="section-header">
+            <h2>⊹ Network Connections</h2>
+            <span class="section-badge">{{ data.network_connections|length }} total</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Local Address</th>
+                        <th>Remote Address</th>
+                        <th>Status</th>
+                        <th>PID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conn in data.network_connections %}
+                    <tr>
+                        <td>{{ conn.local_address or 'N/A' }}</td>
+                        <td>{{ conn.remote_address or 'N/A' }}</td>
+                        <td>
+                            <span class="badge {{
+                                'badge-green' if conn.status == 'ESTABLISHED' else
+                                'badge-red' if conn.status in ['CLOSE_WAIT', 'TIME_WAIT'] else
+                                'badge-blue' if conn.status == 'LISTEN' else
+                                'badge-gray' }}">
+                                {{ conn.status }}
+                            </span>
+                        </td>
+                        <td>{{ conn.pid or 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <div class="section-card" id="sessions">
+        <div class="section-header">
+            <h2>◎ User Sessions</h2>
+        </div>
+        <div class="session-box">{{ data.user_sessions }}</div>
+    </div>
+
+
+    <div class="section-card" id="registry">
+        <div class="section-header">
+            <h2>≡ Registry Artifacts</h2>
+            <span class="section-badge">{{ data.registry_artifacts|length }} entries</span>
+        </div>
+        {% if data.registry_artifacts %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Registry Key</th><th>Name</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    {% for artifact in data.registry_artifacts %}
+                    <tr>
+                        <td style="font-size:10px; color:var(--muted);">{{ artifact.key }}</td>
+                        <td><strong>{{ artifact.name }}</strong></td>
+                        <td style="font-size:10px; color:var(--muted);">{{ artifact.value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p style="color:var(--muted); font-size:13px;">No registry artifacts found.</p>
+        {% endif %}
+    </div>
+
+
+    <div class="section-card" id="prefetch">
+        <div class="section-header">
+            <h2>◷ Prefetch Files</h2>
+            <span class="section-badge">{{ data.prefetch_files|length }} files</span>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Filename</th><th>Last Modified</th></tr>
+                </thead>
+                <tbody>
+                    {% for pf in data.prefetch_files %}
+                    <tr>
+                        <td>{{ pf.name }}</td>
+                        <td style="color:var(--muted);">{{ pf.last_modified }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+const procUsers = {};
+const processes = {{ data.processes | tojson }};
+processes.forEach(proc => {
+    let u = proc.username || 'N/A';
+    u = u.split('\\').pop();
+    procUsers[u] = (procUsers[u] || 0) + 1;
+});
+
+const procLabels = Object.keys(procUsers).slice(0, 6);
+const procValues = procLabels.map(k => procUsers[k]);
+
+new Chart(document.getElementById('processChart'), {
+    type: 'bar',
+    data: {
+        labels: procLabels,
+        datasets: [{
+            label: 'Processes',
+            data: procValues,
+            backgroundColor: 'rgba(122,122,255,0.6)',
+            borderColor: '#7a7aff',
+            borderWidth: 1,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#888899', font: { size: 10 } }, grid: { color: '#2a2a45' } },
+            y: { ticks: { color: '#888899', font: { size: 10 } }, grid: { color: '#2a2a45' } }
+        }
+    }
+});
+
+
+const netStatus = {};
+const connections = {{ data.network_connections | tojson }};
+connections.forEach(conn => {
+    const s = conn.status || 'UNKNOWN';
+    netStatus[s] = (netStatus[s] || 0) + 1;
+});
+
+const netLabels = Object.keys(netStatus);
+const netValues = netLabels.map(k => netStatus[k]);
+
+new Chart(document.getElementById('networkChart'), {
+    type: 'doughnut',
+    data: {
+        labels: netLabels,
+        datasets: [{
+            data: netValues,
+            backgroundColor: [
+                'rgba(39,174,96,0.7)',
+                'rgba(122,122,255,0.7)',
+                'rgba(231,76,60,0.7)',
+                'rgba(243,156,18,0.7)',
+                'rgba(74,74,138,0.7)',
+                'rgba(136,136,153,0.7)',
+            ],
+            borderWidth: 0,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { color: '#888899', font: { size: 10 }, boxWidth: 12 }
+            }
+        }
+    }
+});
+
+
+const sections = document.querySelectorAll('[id]');
+const navItems = document.querySelectorAll('.nav-item');
+window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navItems.forEach(n => {
+        n.classList.remove('active');
+        if (n.getAttribute('href') === '#' + current) n.classList.add('active');
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+psutil
+python-evtx
+flask
+reportlab
