@@ -7,6 +7,7 @@ import webbrowser
 from flask import Flask, render_template, send_file
 from collector import collect_all
 from scorer import score_artifacts
+from scorer import get_risk
 from reporter import generate_report
 
 
@@ -71,17 +72,11 @@ def main():
                 static_folder=os.path.join(base_path, 'static'),
                 static_url_path='/static')
 
-    def get_risk(score):
-        if score == 0:
-            return "LOW", "low"
-        elif score <= 100:
-            return "MEDIUM", "medium"
-        else:
-            return "HIGH", "high"
 
     @app.route('/')
     def dashboard():
-        risk_level, risk_class = get_risk(scored['total_score'])
+        risk_level = get_risk(scored['total_score'])
+        risk_class = risk_level.lower()
         return render_template('dashboard.html',
                             data=data,
                             scored=scored,

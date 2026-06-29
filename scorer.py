@@ -155,3 +155,11 @@ def score_artifacts(data):
 
     print(f"[+] Scoring complete. Total suspicion score: {scored['total_score']}")
     return scored
+
+def get_risk(score):
+    if score == 0:
+        return "LOW"
+    elif score <= 60:
+        return "MEDIUM"
+    else:
+        return "HIGH"

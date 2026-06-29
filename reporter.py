@@ -5,6 +5,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import os
+from scorer import get_risk
 
 
 DARK_NAVY = colors.HexColor('#1a1a2e')
@@ -44,13 +45,6 @@ def build_styles():
                                        textColor=ACCENT_BLUE)
     return styles
 
-def get_risk(score):
-    if score == 0:
-        return "LOW", GREEN
-    elif score <= 100:
-        return "MEDIUM", ORANGE
-    else:
-        return "HIGH", RED
 
 def standard_table_style(header_color=DARK_NAVY):
     return TableStyle([
@@ -90,7 +84,9 @@ def generate_report(data, scored, output_path=None):
     styles = build_styles()
     elements = []
     page_width = A4[0] - 1.3*inch
-    risk_level, risk_color = get_risk(scored['total_score'])
+    risk_level = get_risk(scored['total_score'])
+    risk_colors = {"LOW": GREEN, "MEDIUM": ORANGE, "HIGH": RED}
+    risk_color = risk_colors[risk_level]
 
 
     header_content = [
@@ -245,32 +241,49 @@ def generate_report(data, scored, output_path=None):
 
     if scored['suspicious_processes'] or scored['suspicious_connections'] or \
        scored['suspicious_registry'] or scored['suspicious_prefetch']:
-        for proc in scored['suspicious_processes']:
-            alert_content = [
-                [Paragraph(f"PID {proc['pid']} — {proc['name']}",
-                           ParagraphStyle('ah', fontSize=8, fontName='Helvetica-Bold',
-                                         textColor=RED)),
-                 Paragraph(f"Path: {proc.get('exe', 'N/A')}",
-                           ParagraphStyle('ap', fontSize=7, textColor=DARK_GRAY))],
-            ]
-            for reason in proc['reasons']:
-                alert_content.append([
-                    Paragraph(f"! {reason}", styles['alert']),
-                    Paragraph("", styles['small'])
-                ])
-            alert_table = Table(alert_content,
-                                colWidths=[2.3*inch, page_width - 2.3*inch])
-            alert_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff5f5')),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('BOX', (0, 0), (-1, -1), 1, RED),
-                ('LINEBEFORE', (0, 0), (0, -1), 3, RED),
-            ]))
-            elements.append(alert_table)
-            elements.append(Spacer(1, 4))
+        
+        all_findings = [
+            ('Process', scored['suspicious_processes'], 
+             lambda f: f"PID {f['pid']} — {f['name']}", 
+             lambda f: f"Path: {f.get('exe', 'N/A')}"),
+            ('Connection', scored['suspicious_connections'], 
+             lambda f: f"Connection — {f.get('remote', 'N/A')}", 
+             lambda f: f"Status: {f.get('status', 'N/A')}"),
+            ('Registry', scored['suspicious_registry'], 
+             lambda f: f"Registry — {f.get('name', 'N/A')}", 
+             lambda f: f"Value: {f.get('value', 'N/A')}"),
+            ('Prefetch', scored['suspicious_prefetch'], 
+             lambda f: f"Prefetch — {f.get('name', 'N/A')}", 
+             lambda f: f"Last Modified: {f.get('last_modified', 'N/A')}"),
+        ]
+
+        for category, findings, title_fn, subtitle_fn in all_findings:
+            for finding in findings:
+                reasons = finding.get('reasons', [finding.get('reason', '')])
+                alert_content = [
+                    [Paragraph(title_fn(finding),
+                               ParagraphStyle('ah', fontSize=8, fontName='Helvetica-Bold', textColor=RED)),
+                     Paragraph(subtitle_fn(finding),
+                               ParagraphStyle('ap', fontSize=7, textColor=DARK_GRAY))],
+                ]
+                for reason in reasons:
+                    alert_content.append([
+                        Paragraph(f"! {reason}", styles['alert']),
+                        Paragraph("", styles['small'])
+                    ])
+                alert_table = Table(alert_content, colWidths=[2.3*inch, page_width - 2.3*inch])
+                alert_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff5f5')),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('BOX', (0, 0), (-1, -1), 1, RED),
+                    ('LINEBEFORE', (0, 0), (0, -1), 3, RED),
+                ]))
+                elements.append(alert_table)
+                elements.append(Spacer(1, 4))
+
     else:
         elements.append(Paragraph("✓ No suspicious findings detected on this system.", styles['ok']))
 
