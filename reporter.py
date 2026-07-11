@@ -1,5 +1,6 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
+from reportlab.lib.colors import HexColor
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
@@ -203,6 +204,8 @@ def generate_report(data, scored, output_path=None):
                   alignment=TA_CENTER, fontName='Helvetica-Bold')),
         Paragraph("User Session", ParagraphStyle('cl', fontSize=7, textColor=WHITE,
                   alignment=TA_CENTER, fontName='Helvetica-Bold')),
+        Paragraph("Event Logs", ParagraphStyle('cl', fontSize=7, textColor=WHITE,
+                  alignment=TA_CENTER, fontName='Helvetica-Bold')),
     ],[
         Paragraph(str(len(data['processes'])), ParagraphStyle('cv', fontSize=18,
                   textColor=LIGHT_BLUE, alignment=TA_CENTER, fontName='Helvetica-Bold')),
@@ -215,10 +218,12 @@ def generate_report(data, scored, output_path=None):
         Paragraph(str(data.get('user_sessions', 'N/A')).split(':')[-1].strip(),
                   ParagraphStyle('cv', fontSize=10, textColor=LIGHT_BLUE,
                   alignment=TA_CENTER, fontName='Helvetica-Bold')),
+        Paragraph(str(len(data.get('event_logs', []))), ParagraphStyle('cv', fontSize=18,
+                  textColor=LIGHT_BLUE, alignment=TA_CENTER, fontName='Helvetica-Bold')),
     ]]
 
-    col_w2 = page_width / 5
-    cards_table = Table(cards_data, colWidths=[col_w2] * 5)
+    col_w2 = page_width / 6
+    cards_table = Table(cards_data, colWidths=[col_w2] * 6)
     cards_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), ACCENT_BLUE),
         ('BACKGROUND', (0, 1), (-1, 1), DARK_NAVY),
@@ -396,7 +401,29 @@ def generate_report(data, scored, output_path=None):
             "No prefetch files found. Run LiveTrace as Administrator to collect prefetch data.",
             styles['normal']))
 
+    elements.append(Paragraph("Event Logs", styles['section']))
+    elements.append(HRFlowable(width="100%", thickness=1, color=ACCENT_BLUE))
+    elements.append(Spacer(1, 4))
 
+    if data.get('event_logs'):
+        el_data = [['Event ID', 'Level', 'Time Created', 'Channel', 'Message']]
+        for log in data['event_logs'][:50]:
+            el_data.append([
+                str(log.get('EventID', 'N/A')),
+                str(log.get('Level', 'N/A')),
+                str(log.get('TimeCreated', 'N/A')),
+                str(log.get('Channel', 'N/A')),
+                str(log.get('Message', 'N/A'))[:60],
+            ])
+        el_table = Table(el_data, colWidths=[0.6*inch, 0.6*inch, 1.4*inch, 0.7*inch, 2.9*inch])
+        el_table.setStyle(standard_table_style())
+        elements.append(el_table)
+    else:
+        elements.append(Paragraph(
+            "No event logs collected. Run LiveTrace as Administrator to collect event log data.",
+            styles['normal']))
+    
+    
     elements.append(Spacer(1, 20))
     elements.append(HRFlowable(width="100%", thickness=1, color=ACCENT_BLUE))
     elements.append(Spacer(1, 6))

@@ -165,6 +165,26 @@
         }
         .download-btn:hover { background: #6060dd; }
 
+        .sidebar-refresh-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 12px 16px;
+            padding: 8px 12px;
+            background-color: transparent;
+            border: 1px solid #6060dd;
+            color: #6060dd;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .sidebar-refresh-btn:hover {
+            background-color: #6060dd;
+            color: #0A1628;
+        }
+
         /* ── OVERVIEW ROW ── */
         .overview-row {
             display: grid;
@@ -457,8 +477,10 @@
             </svg>
             <span class="logo-text">LiveTrace</span>
         </div>
+        
         <div class="logo-sub">Live System Forensics & Triage Toolkit</div>
     </div>
+
 
     <div class="nav-section">
         <div class="nav-label">Navigation</div>
@@ -491,7 +513,17 @@
             <span class="icon">◷</span> Prefetch
             <span class="nav-badge">{{ data.prefetch_files|length }}</span>
         </a>
+        <a class="nav-item" href="#eventlogs">
+            <span class="icon">📋</span> Event Logs
+            <span class="nav-badge">{{ data.event_logs|length }}</span>
+        </a>
     </div>
+
+
+    <a href="/refresh" class="sidebar-refresh-btn" title="Refresh Scan">
+        🔄 Refresh Scan
+    </a>
+
 
     <div class="sidebar-footer">
         Scan: <span>{{ data.timestamp }}</span>
@@ -674,7 +706,10 @@
     <div class="section-card" id="processes">
         <div class="section-header">
             <h2>⚙ Running Processes</h2>
-            <span class="section-badge">{{ data.processes|length }} total</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/download/processes" class="download-btn">⬇ JSON</a>
+                <span class="section-badge">{{ data.processes|length }} total</span>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="data-table">
@@ -710,7 +745,10 @@
     <div class="section-card" id="network">
         <div class="section-header">
             <h2>⊹ Network Connections</h2>
-            <span class="section-badge">{{ data.network_connections|length }} total</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/download/network" class="download-btn">⬇ JSON</a>
+                <span class="section-badge">{{ data.network_connections|length }} total</span>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="data-table">
@@ -748,6 +786,7 @@
     <div class="section-card" id="sessions">
         <div class="section-header">
             <h2>◎ User Sessions</h2>
+            <a href="/download/sessions" class="download-btn">⬇ JSON</a>
         </div>
         <div class="session-box">{{ data.user_sessions }}</div>
     </div>
@@ -756,7 +795,10 @@
     <div class="section-card" id="registry">
         <div class="section-header">
             <h2>≡ Registry Artifacts</h2>
-            <span class="section-badge">{{ data.registry_artifacts|length }} entries</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/download/registry" class="download-btn">⬇ JSON</a>
+                <span class="section-badge">{{ data.registry_artifacts|length }} entries</span>
+            </div>
         </div>
         {% if data.registry_artifacts %}
         <div class="table-wrapper">
@@ -784,7 +826,10 @@
     <div class="section-card" id="prefetch">
         <div class="section-header">
             <h2>◷ Prefetch Files</h2>
-            <span class="section-badge">{{ data.prefetch_files|length }} files</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/download/prefetch" class="download-btn">⬇ JSON</a>
+                <span class="section-badge">{{ data.prefetch_files|length }} files</span>
+            </div>
         </div>
         <div class="table-wrapper">
             <table class="data-table">
@@ -802,6 +847,51 @@
             </table>
         </div>
     </div>
+
+
+    <div class="section-card" id="eventlogs">
+        <div class="section-header">
+            <h2>▤ Event Logs</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/download/eventlogs" class="download-btn">⬇ JSON</a>
+                <span class="section-badge">{{ data.event_logs|length }} entries</span>
+            </div>
+        </div>
+        {% if data.event_logs %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Event ID</th>
+                        <th>Level</th>
+                        <th>Time Created</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in data.event_logs[:100] %}
+                    <tr>
+                        <td>{{ log.get('EventID', 'N/A') }}</td>
+                        <td>
+                            <span class="badge {{
+                                'badge-red' if log.get('Level') in ['Error', 'Critical'] else
+                                'badge-orange' if log.get('Level') == 'Warning' else
+                                'badge-gray' }}">
+                                {{ log.get('Level', 'N/A') }}
+                            </span>
+                        </td>
+                        <td style="color:var(--muted); font-size:10px;">{{ log.get('TimeCreated', 'N/A') }}</td>
+                        <td style="font-size:10px; color:var(--muted);">{{ log.get('Message', 'N/A')[:100] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p style="color:var(--muted); font-size:13px;">No event logs collected. Run LiveTrace as administrator to collect event log data.</p>
+        {% endif %}
+    </div>
+
 
 </div>
 

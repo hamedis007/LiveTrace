@@ -6,6 +6,8 @@ import json
 import hashlib
 from datetime import datetime
 
+
+
 def get_running_processes():
     processes = []
     for proc in psutil.process_iter(['pid', 'name', 'exe', 'username', 'status']):
@@ -102,6 +104,33 @@ def get_registry_artifacts():
             pass
     return artifacts
 
+def get_event_logs():
+    print("[*] Collecting event logs...")
+    event_logs = []
+    try:
+        import win32evtlog
+        log_types = ['System', 'Security']
+        for log_type in log_types:
+            try:
+                hand = win32evtlog.OpenEventLog('localhost', log_type)
+                flags = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
+                events = win32evtlog.ReadEventLog(hand, flags, 0)
+                for event in events[:50]:
+                    event_logs.append({
+                        'EventID': event.EventID & 0xFFFF,
+                        'TimeCreated': str(event.TimeGenerated),
+                        'Channel': log_type,
+                        'Message': str(event.StringInserts)[:200] if event.StringInserts else 'N/A'
+                    })
+                win32evtlog.CloseEventLog(hand)
+            except Exception as e:
+                print(f"[!] Could not read {log_type}: {e}")
+                continue
+    except ImportError:
+        print("[!] win32evtlog not available, skipping event logs.")
+    print(f"[+] Collected {len(event_logs)} event log entries.")
+    return event_logs
+
 def collect_all():
     print("[*] Starting artifact collection...")
     data = {
@@ -110,7 +139,8 @@ def collect_all():
         'network_connections': get_network_connections(),
         'user_sessions': get_user_sessions(),
         'prefetch_files': get_prefetch_files(),
-        'registry_artifacts': get_registry_artifacts()
+        'registry_artifacts': get_registry_artifacts(),
+        'event_logs': get_event_logs()
     }
     data_string = json.dumps(data, sort_keys=True, default=str)
     data_hash = hashlib.sha256(data_string.encode()).hexdigest()

@@ -1,4 +1,4 @@
 psutil
-python-evtx
+pywin32
 flask
 reportlab
