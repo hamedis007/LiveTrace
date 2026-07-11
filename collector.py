@@ -109,6 +109,11 @@ def get_event_logs():
     event_logs = []
     try:
         import win32evtlog
+        import win32evtlogutil
+
+        levels = {1: 'Error', 2: 'Warning', 4: 'Information',
+                  8: 'Audit Success', 16: 'Audit Failure'}
+
         log_types = ['System', 'Security']
         for log_type in log_types:
             try:
@@ -116,11 +121,17 @@ def get_event_logs():
                 flags = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
                 events = win32evtlog.ReadEventLog(hand, flags, 0)
                 for event in events[:50]:
+                    try:
+                        msg = win32evtlogutil.SafeFormatMessage(event, log_type)
+                        msg = ' '.join(msg.split())
+                    except Exception:
+                        msg = 'N/A'
                     event_logs.append({
                         'EventID': event.EventID & 0xFFFF,
+                        'Level': levels.get(event.EventType, 'Unknown'),
                         'TimeCreated': str(event.TimeGenerated),
                         'Channel': log_type,
-                        'Message': str(event.StringInserts)[:200] if event.StringInserts else 'N/A'
+                        'Message': msg[:200] if msg else 'N/A'
                     })
                 win32evtlog.CloseEventLog(hand)
             except Exception as e:
